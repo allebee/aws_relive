@@ -1,0 +1,65 @@
+<!doctype html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Video Stream</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #f2f2f2;
+        }
+
+        h1 {
+            color: #333;
+        }
+
+        #video {
+            display: block;
+            margin: 0 auto;
+            border: 2px solid #333;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Liveness Check</h1>
+    <img id="bwImage" width="640" height="480">
+    <script type="text/javascript">
+        var bwImage = document.getElementById('bwImage');
+        var socket = new WebSocket("ws://" + location.host + "/ws");
+
+        socket.onmessage = function (event) {
+            var imageData = event.data; // Assuming event.data contains the base64-encoded image data
+            bwImage.src = imageData;
+        };
+
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(function (stream) {
+                var video = document.createElement('video');
+                video.width = 640;
+                video.height = 480;
+                video.srcObject = stream;
+                video.autoplay = true;
+
+                var canvas = document.createElement('canvas');
+                canvas.width = 640;
+                canvas.height = 480;
+                var context = canvas.getContext('2d');
+
+                setInterval(function () {
+                    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    var frame = canvas.toDataURL('image/jpeg', 0.8);
+                    // console.log('Sending frame:', frame);
+                    socket.send(frame);
+                }, 50);
+            })
+            .catch(function (error) {
+                console.log('Error accessing camera: ', error);
+            });
+    </script>
+</body>
+
+</html>
