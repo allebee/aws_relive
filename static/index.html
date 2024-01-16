@@ -29,36 +29,53 @@
     <img id="bwImage" width="640" height="480">
     <script type="text/javascript">
         var bwImage = document.getElementById('bwImage');
-        var socket = new WebSocket("ws://" + location.host + "/ws");
+        var socket = new WebSocket((window.location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + "/ws");
+
+        socket.onopen = function (event) {
+            console.log("WebSocket connection established.");
+
+            // Now that the WebSocket is open, you can start sending data
+            navigator.mediaDevices.getUserMedia({ video: true })
+                .then(function (stream) {
+                    var video = document.createElement('video');
+                    video.width = 640;
+                    video.height = 480;
+                    video.srcObject = stream;
+                    video.autoplay = true;
+
+                    var canvas = document.createElement('canvas');
+                    canvas.width = 640;
+                    canvas.height = 480;
+                    var context = canvas.getContext('2d');
+
+                    setInterval(function () {
+                        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                        var frame = canvas.toDataURL('image/jpeg', 0.8);
+                        socket.send(frame); // Send data when the WebSocket is open
+                    }, 100);
+                })
+                .catch(function (error) {
+                    console.log('Error accessing camera: ', error);
+                });
+        };
 
         socket.onmessage = function (event) {
             var imageData = event.data; // Assuming event.data contains the base64-encoded image data
             bwImage.src = imageData;
         };
 
-        navigator.mediaDevices.getUserMedia({ video: true })
-            .then(function (stream) {
-                var video = document.createElement('video');
-                video.width = 640;
-                video.height = 480;
-                video.srcObject = stream;
-                video.autoplay = true;
+        socket.onerror = function (error) {
+            console.error("WebSocket error: " + error);
+        };
 
-                var canvas = document.createElement('canvas');
-                canvas.width = 640;
-                canvas.height = 480;
-                var context = canvas.getContext('2d');
+        socket.onclose = function (event) {
+            if (event.wasClean) {
+                console.log("WebSocket closed cleanly, code=" + event.code + ", reason=" + event.reason);
+            } else {
+                console.error("WebSocket connection died");
+            }
+        };
 
-                setInterval(function () {
-                    context.drawImage(video, 0, 0, canvas.width, canvas.height);
-                    var frame = canvas.toDataURL('image/jpeg', 0.8);
-                    // console.log('Sending frame:', frame);
-                    socket.send(frame);
-                }, 50);
-            })
-            .catch(function (error) {
-                console.log('Error accessing camera: ', error);
-            });
     </script>
 </body>
 
